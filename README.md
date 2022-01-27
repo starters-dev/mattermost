@@ -31,3 +31,5 @@ This repo is used to configure Mattermost in the Cloud (DigitalOcean.com)
 ```
 
 It will setup everything, including ACME (https certificates), PostgreSQL and will run docker.
+
+Thanks to the official [Mattermost Docker repo](https://github.com/mattermost/docker).
