@@ -1,2 +1,2 @@
-sh scripts/acme.sh
-sh scripts/volumes.sh
+bash scripts/acme.sh
+bash scripts/volumes.sh

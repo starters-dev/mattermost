@@ -1,5 +1,5 @@
 # first setup
-sh scripts/setup.sh
+bash scripts/setup.sh
 
 # building containers
 docker-compose build && docker-compose up -d
