@@ -18,3 +18,6 @@ for dir in "${DIRS[@]}"; do
     mkdir "$dir"
   fi
 done
+
+# needed for Mattermost
+sudo chown -R 2000:2000 volumes/mattermost
