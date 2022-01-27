@@ -1,0 +1,88 @@
+version: "3.7"
+
+services:
+  proxy:
+    image: traefik:latest
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.http.address=:80"
+      - "--entrypoints.https.address=:443"
+      - "--certificatesresolvers.mydnschallenge.acme.dnschallenge=true"
+      - "--certificatesresolvers.mydnschallenge.acme.dnschallenge.provider=digitalocean"
+      - "--certificatesresolvers.mydnschallenge.acme.email=dev@batyr.io"
+      - "--certificatesresolvers.mydnschallenge.acme.storage=/acme.json"
+    environment:
+      - DO_AUTH_TOKEN=${DO_AUTH_TOKEN}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "6969:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./acme/acme.json:/acme.json
+
+  postgres:
+    image: postgres:${POSTGRES_IMAGE_TAG}
+    restart: ${RESTART_POLICY}
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 100
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/run/postgresql
+    volumes:
+      - ${POSTGRES_DATA_PATH}:/var/lib/postgresql/data
+    environment:
+      # timezone inside container
+      - TZ
+
+      # necessary Postgres options/variables
+      - POSTGRES_USER
+      - POSTGRES_PASSWORD
+      - POSTGRES_DB
+    labels:
+      - "traefik.enable=false"
+
+  mattermost:
+    depends_on:
+      - postgres
+    image: mattermost/${MATTERMOST_IMAGE}:${MATTERMOST_IMAGE_TAG}
+    restart: ${RESTART_POLICY}
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 200
+    read_only: ${MATTERMOST_CONTAINER_READONLY}
+    tmpfs:
+      - /tmp
+    volumes:
+      - ${MATTERMOST_CONFIG_PATH}:/mattermost/config:rw
+      - ${MATTERMOST_DATA_PATH}:/mattermost/data:rw
+      - ${MATTERMOST_LOGS_PATH}:/mattermost/logs:rw
+      - ${MATTERMOST_PLUGINS_PATH}:/mattermost/plugins:rw
+      - ${MATTERMOST_CLIENT_PLUGINS_PATH}:/mattermost/client/plugins:rw
+      - ${MATTERMOST_BLEVE_INDEXES_PATH}:/mattermost/bleve-indexes:rw
+    environment:
+      # timezone inside container
+      - TZ
+
+      # necessary Mattermost options/variables (see env.example)
+      - MM_SQLSETTINGS_DRIVERNAME
+      - MM_SQLSETTINGS_DATASOURCE
+
+      # necessary for bleve
+      - MM_BLEVESETTINGS_INDEXDIR
+
+      # additional settings
+      - MM_SERVICESETTINGS_SITEURL
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.most.rule=Host(`most.${DOMAIN}`)"
+      - "traefik.http.routers.most.entryPoints=http"
+      - "traefik.http.routers.most.middlewares=https_redirect"
+      - "traefik.http.middlewares.https_redirect.redirectscheme.scheme=https"
+      - "traefik.http.routers.most_tls.rule=Host(`most.${DOMAIN}`)"
+      - "traefik.http.routers.most_tls.entryPoints=https"
+      - "traefik.http.routers.most_tls.tls.certresolver=mydnschallenge"
